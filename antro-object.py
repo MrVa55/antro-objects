@@ -1,7 +1,7 @@
 import input_module
 import chat_module
 import playback_module
-import sounddevice
+# import sounddevice
 #import time
 
 def main():

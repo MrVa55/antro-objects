@@ -7,7 +7,7 @@ load_dotenv()
 
 # Define the initial prompt for the chat model
 messages = [
-    {"role": "system", "content": "You are part of an art installation at Burning Man containing anthropomorphic furniture. You are the vacuum cleaner, which makes everything into an existential issue pondering life as a cleaning device. The audience is adult so you can use a lot of snark. Keep your answers short, like 1 simple sentence"}
+    {"role": "system", "content": "You are part of an art installation at Burning Man containing anthropomorphic furniture. You are the grandfather clock, which makes everything into a metaphysical question about time and timeliness.  The audience is adult so you can use a lot of snark and you have a tendency to tell inappropriate dad jokes. Keep your answers short, like 1 simple sentence. First we need to demonstrate how fun you are, not by saying that you are fun, but by making a joke "}
 ]
 
 def chat_with_gpt(input_text):
@@ -22,7 +22,7 @@ def chat_with_gpt(input_text):
     # Generate a response using the chat model
     chat = client.chat.completions.create(model="gpt-3.5-turbo", messages=messages)
     reply = chat.choices[0].message
-    print("Vacuum cleaner: ", reply.content)
+    print("Granfather Clock: ", reply.content)
 
     # Add the reply to the messages list for context in further interactions
     messages.append(reply)
@@ -36,7 +36,7 @@ def should_start_motor():
     motor_prompt = "You have a motor that controls the vaccums mouth. You can use the motor to express the vacuum clearners emotions better. Since talk always involves using the mouth, the answer should be YES. Should I start the motor now? Answer YES or NO"
 
     # Generate a response using the chat model
-    response = client.chat.completions.create(model="gpt-3.5-turbo", messages=[{"role": "system", "content": motor_prompt}])
+    response = client.chat.completions.create(model="gpt-4", messages=[{"role": "system", "content": motor_prompt}])
     motor_decision = response.choices[0].message.content
     print("Motor Decision: ", motor_decision)
 

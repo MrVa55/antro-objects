@@ -14,34 +14,89 @@ load_dotenv()
 client = openai.OpenAI(api_key=os.getenv('OPENAI.API_KEY'))
 
 def create_led_sequence(description):
-    json_format_description = (
-        "You generate a JSON sequence for controlling WS2812B LEDs. Please limit your response to the JSON object only. Do not use comments or abbreviations but finish the entire JSON object - dont give a description of how the rest of the file will look as it will be sent to the LED strip not to a human"
-        "'totalLEDs' is the number of LEDs, which is always 60"
-        "The JSON should have a structure where you first assign 'colors' to the numbers between 0 and 9. colors are defined as integer RGB values such as [255, 255, 0]. You dont need to use all 9 colors unless its necessary. Think about which colors are good to express the description "
-        "You can now create a 'sequence', which is an array of frames. "
-        "Each frame has 'frameDuration' in milliseconds and 'ledPattern', which is a 60 charachter string, where each number corresponds to one of the colors defined above"
-        "Based on these specifications, you need to interpret the following description and express it through a sequence of LED lights. Please create a JSON sequence for: " + description
-    )
+    # Define the function specification for generating the LED sequence JSON
+    led_sequence_function_spec = {
+        "type": "function",
+        "function": {
+            "name": "generate_led_sequence_json",
+            "description": "Create a JSON object to control an LED strip. First, define up to 9 colors, each represented by a number (0-9) and corresponding to an RGB array. Then, based on these colors, create a sequence of LED frames, each frame having a duration and a 60-character pattern string where each number corresponds to a color in the color array.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "colors": {
+                        "type": "array",
+                        "description": "An array of RGB colors, each color represented as an array of three integers (0-255). Think about which colors are good for the description",
+                        "items": {
+                            "type": "array",
+                            "minItems": 3,
+                            "maxItems": 3,
+                            "items": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 255
+                            }
+                        }
+                    },
+                    "sequence": {
+                        "type": "array",
+                        "description": "Array of frames for the LED sequence. Each frame consists of a duration and a 60-character string of numbers, where each number corresponds to a key in 'colors'. Try to make some imaginative and pretty sequences like rolling colors, snakes, dance moves or similar",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "frameDuration": {
+                                    "type": "integer",
+                                    "description": "Duration of the frame in milliseconds."
+                                },
+                                "ledPattern": {
+                                    "type": "string",
+                                    "description": "60-character string of numbers representing the LED pattern, where each number corresponds to a color key in 'colors'."
+                                }
+                            },
+                            "required": ["frameDuration", "ledPattern"]
+                        }
+                    }
+                },
+                "required": ["colors", "sequence"]
+            }
+        }
+    }
+
 
     response = client.chat.completions.create(
         model="gpt-3.5-turbo-1106",
-        messages=[{"role": "system", "content": json_format_description}],
-        response_format={"type": "json_object"},
-    
+        messages=[{"role": "system", "content": "Please create an LED sequence based on this description" + description}],
+        tools=[led_sequence_function_spec],
     )
 
-    sequence = response.choices[0].message.content  # Corrected attribute access
-    reason = response.choices[0].finish_reason
-    print(sequence)
 
-    try:
-        json_sequence = json.loads(sequence)
-        return json_sequence
-    except json.JSONDecodeError:
-        return "Error in JSON format"+reason
+    
+      # Print the raw response for debugging
+    # print(response)
+
+    # Convert the response to a Python dictionary if it's a string
+    response_data = json.loads(response.model_dump_json())
+
+    # Extract the tool_calls array
+    tool_calls = response_data["choices"][0]["message"]["tool_calls"]
+    print(tool_calls)
+    
+    if tool_calls and "arguments" in tool_calls[0]["function"]:
+        sequence = tool_calls[0]["function"]["arguments"]
+        reason = response.choices[0].finish_reason
+ 
+
+        try:
+            json_sequence = json.loads(sequence)
+            return json_sequence
+        except json.JSONDecodeError as e:
+                return f"Error in JSON format: {str(e)} Reason for stop: {reason}"
+    else:
+        return "Error: Expected data not found in response"
 
 def display_sequence(strip, json_sequence):
-    colors = json_sequence["colors"]
+    colors = {str(i): color for i, color in enumerate(json_sequence["colors"])}
+    # colors now is like {"1": [255, 0, 0], "2": [255, 255, 255], ...}
+
     while True:  # Loop to repeat the sequence
         for frame in json_sequence["sequence"]:
             frameDuration = frame["frameDuration"] / 1000.0
